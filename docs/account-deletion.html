@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Smart Sheet Account Deletion Guide — How to delete your Smart Sheet account and associated workspace profile data." />
+  <link rel="canonical" href="https://gen-lang-client-0057690374.firebaseapp.com/account-deletion" />
+  <title>Account Deletion — Smart Sheet</title>
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --surface: #ffffff;
+      --text: #0f172a;
+      --muted: #475569;
+      --primary: #1a73e8;
+      --border: #e2e8f0;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.65;
+    }
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 16px 24px;
+    }
+    .nav {
+      max-width: 860px;
+      margin: 0 auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .brand {
+      font-weight: 700;
+      font-size: 1.15rem;
+      color: var(--primary);
+      text-decoration: none;
+    }
+    .nav-links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 18px;
+    }
+    .nav-links a {
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 0.95rem;
+      font-weight: 500;
+    }
+    .nav-links a:hover, .nav-links a[aria-current="page"] { color: var(--primary); }
+    main {
+      max-width: 860px;
+      margin: 28px auto;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 32px;
+    }
+    h1 { margin-top: 0; font-size: 1.9rem; }
+    h2 { margin-top: 24px; font-size: 1.2rem; }
+    code {
+      background: #f1f5f9;
+      padding: 2px 6px;
+      border-radius: 6px;
+      font-size: 0.88rem;
+    }
+    footer {
+      max-width: 860px;
+      margin: 0 auto 40px;
+      padding: 0 16px;
+      color: var(--muted);
+      font-size: 0.9rem;
+      display: flex;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    footer a { color: var(--primary); text-decoration: none; }
+  </style>
+</head>
+<body>
+  <header>
+    <nav class="nav" aria-label="Primary navigation">
+      <a class="brand" href="/">Smart Sheet</a>
+      <div class="nav-links">
+        <a href="/">Home</a>
+        <a href="/privacy-policy">Privacy Policy</a>
+        <a href="/terms-of-service">Terms of Service</a>
+        <a href="/account-deletion" aria-current="page">Account Deletion</a>
+      </div>
+    </nav>
+  </header>
+
+  <main>
+    <h1>Smart Sheet Account Deletion</h1>
+    <p>
+      You can permanently delete your <strong>Smart Sheet</strong> (<code>com.aistudio.smartsheet.kxmpzq</code>)
+      account directly inside the Android app or request deletion by email.
+    </p>
+
+    <h2>Option 1: Delete Immediately Inside the Smart Sheet App</h2>
+    <ol>
+      <li>Open <strong>Smart Sheet</strong> and sign in with your Google Account.</li>
+      <li>Go to <strong>My Account</strong> (for Employees, tap <strong>Account</strong> in the navigation bar; for Admins, open <strong>Admin → My Account &amp; Legal Links</strong>).</li>
+      <li>Scroll to <strong>ACCOUNT MANAGEMENT</strong> and tap <strong>Delete Account</strong>.</li>
+      <li>Confirm permanent deletion.</li>
+    </ol>
+
+    <h2>Option 2: Request Deletion Without the App</h2>
+    <p>
+      If you no longer have access to the Android app, email
+      <a href="mailto:sanudeen42@gmail.com?subject=Smart%20Sheet%20Account%20Deletion%20Request">sanudeen42@gmail.com</a>
+      from the Google email address associated with your Smart Sheet account with the subject
+      <strong>Smart Sheet Account Deletion Request</strong>. Requests are processed promptly and
+      confirmed via email.
+    </p>
+
+    <h2>What Data Is Deleted vs. Retained</h2>
+    <ul>
+      <li><strong>Deleted:</strong> Your Firebase Authentication user account, your Firestore user profile, saved searches, employee workspace membership record (or Admin workspace settings/connections if you are a Workspace Admin), active Google OAuth token, and local device cache.</li>
+      <li><strong>Not Deleted (Your Ownership):</strong> Original Google Spreadsheets stored in your personal or business Google Drive remain completely untouched in Google Drive.</li>
+      <li><strong>Audit Trail Note:</strong> Immutable workspace audit/activity logs created prior to deletion may remain inside a team Admin's workspace history if applicable until the Admin deletes their workspace.</li>
+    </ul>
+  </main>
+
+  <footer>
+    <span>&copy; 2026 Smart Sheet</span>
+    <span>
+      <a href="/">Home</a> &middot;
+      <a href="/privacy-policy">Privacy Policy</a> &middot;
+      <a href="/terms-of-service">Terms of Service</a>
+    </span>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,679 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidTimestamp(ts) {
+      return ts is timestamp && ts <= request.time;
+    }
+
+    function isValidPermission(perm) {
+      return perm in ['SEARCH_ONLY', 'SEARCH_ADD', 'SEARCH_EDIT', 'FULL_ACCESS'];
+    }
+
+    function isValidAccountStatus(st) {
+      return st in ['ACTIVE', 'SUSPENDED', 'REMOVED'];
+    }
+
+    function hasAuthEmail() {
+      return isSignedIn() && 'email' in request.auth.token && request.auth.token.email is string && request.auth.token.email.size() >= 3;
+    }
+
+    function authEmailLower() {
+      return request.auth.token.email.lower();
+    }
+
+    function hasActiveEmailInvite() {
+      return hasAuthEmail() &&
+        exists(/databases/$(database)/documents/email_invites/$(authEmailLower())) &&
+        get(/databases/$(database)/documents/email_invites/$(authEmailLower())).data.status == 'ACTIVE' &&
+        exists(/databases/$(database)/documents/invitations/$(get(/databases/$(database)/documents/email_invites/$(authEmailLower())).data.inviteCode)) &&
+        get(/databases/$(database)/documents/invitations/$(get(/databases/$(database)/documents/email_invites/$(authEmailLower())).data.inviteCode)).data.status == 'ACTIVE' &&
+        get(/databases/$(database)/documents/invitations/$(get(/databases/$(database)/documents/email_invites/$(authEmailLower())).data.inviteCode)).data.usedCount < get(/databases/$(database)/documents/invitations/$(get(/databases/$(database)/documents/email_invites/$(authEmailLower())).data.inviteCode)).data.maxUses;
+    }
+
+    function existingEmailInviteIsInactive() {
+      return existing().status != 'ACTIVE' ||
+        !exists(/databases/$(database)/documents/invitations/$(existing().inviteCode)) ||
+        get(/databases/$(database)/documents/invitations/$(existing().inviteCode)).data.status != 'ACTIVE' ||
+        get(/databases/$(database)/documents/invitations/$(existing().inviteCode)).data.usedCount >= get(/databases/$(database)/documents/invitations/$(existing().inviteCode)).data.maxUses;
+    }
+
+    function isValidEmployeeInviteTransition() {
+      return incoming().userId == existing().userId &&
+             incoming().createdAt == existing().createdAt &&
+             incoming().role == 'EMPLOYEE' &&
+             incoming().status == 'ACTIVE' &&
+             'inviteCodeUsed' in incoming() &&
+             isValidId(incoming().inviteCodeUsed) &&
+             exists(/databases/$(database)/documents/invitations/$(incoming().inviteCodeUsed)) &&
+             get(/databases/$(database)/documents/invitations/$(incoming().inviteCodeUsed)).data.status == 'ACTIVE' &&
+             get(/databases/$(database)/documents/invitations/$(incoming().inviteCodeUsed)).data.usedCount < get(/databases/$(database)/documents/invitations/$(incoming().inviteCodeUsed)).data.maxUses &&
+             get(/databases/$(database)/documents/invitations/$(incoming().inviteCodeUsed)).data.adminUid == incoming().workspaceId &&
+             (!('targetEmail' in get(/databases/$(database)/documents/invitations/$(incoming().inviteCodeUsed)).data) ||
+              !hasAuthEmail() ||
+              get(/databases/$(database)/documents/invitations/$(incoming().inviteCodeUsed)).data.targetEmail == authEmailLower());
+    }
+
+    function isActiveEmployee(workspaceId) {
+      return exists(/databases/$(database)/documents/workspaces/$(workspaceId)/employees/$(request.auth.uid)) &&
+             get(/databases/$(database)/documents/workspaces/$(workspaceId)/employees/$(request.auth.uid)).data.status == 'ACTIVE';
+    }
+
+    function employeeData(workspaceId) {
+      return get(/databases/$(database)/documents/workspaces/$(workspaceId)/employees/$(request.auth.uid)).data;
+    }
+
+    function effectiveSheetPermission(emp, sheetId) {
+      return ('sheetPermissions' in emp && emp.sheetPermissions is map && sheetId in emp.sheetPermissions)
+        ? emp.sheetPermissions[sheetId]
+        : emp.defaultPermission;
+    }
+
+    function isWorkspaceMember(workspaceId) {
+      return request.auth.uid == workspaceId || isActiveEmployee(workspaceId);
+    }
+
+    function isValidUserProfile(data) {
+      return data.keys().hasAll(['userId', 'email', 'displayName', 'role', 'workspaceId', 'status', 'createdAt', 'updatedAt']) &&
+             data.keys().hasOnly(['userId', 'email', 'displayName', 'photoUrl', 'role', 'workspaceId', 'inviteCodeUsed', 'addedByAdminUid', 'addedByAdminName', 'addedByAdminEmail', 'invitedAt', 'joinedAt', 'status', 'createdAt', 'updatedAt']) &&
+             isValidId(data.userId) &&
+             data.email is string && data.email.size() >= 3 && data.email.size() <= 200 &&
+             data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 120 &&
+             (!('photoUrl' in data) || (data.photoUrl is string && data.photoUrl.size() <= 500)) &&
+             data.role in ['ADMIN', 'EMPLOYEE'] &&
+             isValidId(data.workspaceId) &&
+             (!('inviteCodeUsed' in data) || (data.inviteCodeUsed is string && data.inviteCodeUsed.size() <= 64)) &&
+             (!('addedByAdminUid' in data) || isValidId(data.addedByAdminUid)) &&
+             (!('addedByAdminName' in data) || (data.addedByAdminName is string && data.addedByAdminName.size() <= 120)) &&
+             (!('addedByAdminEmail' in data) || (data.addedByAdminEmail is string && data.addedByAdminEmail.size() <= 200)) &&
+             (!('invitedAt' in data) || data.invitedAt is timestamp) &&
+             (!('joinedAt' in data) || data.joinedAt is timestamp) &&
+             isValidAccountStatus(data.status) &&
+             isValidTimestamp(data.createdAt) &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidInvitation(data) {
+      return data.keys().hasAll(['inviteCode', 'adminUid', 'adminName', 'adminEmail', 'workspaceId', 'defaultPermission', 'assignedSheetIds', 'maxUses', 'usedCount', 'status', 'createdAt', 'updatedAt']) &&
+             data.keys().hasOnly(['inviteCode', 'adminUid', 'adminName', 'adminEmail', 'workspaceId', 'targetEmail', 'role', 'defaultPermission', 'assignedSheetIds', 'sheetPermissions', 'maxUses', 'usedCount', 'status', 'expiresAt', 'createdAt', 'updatedAt']) &&
+             isValidId(data.inviteCode) &&
+             isValidId(data.adminUid) &&
+             data.adminName is string && data.adminName.size() >= 1 && data.adminName.size() <= 120 &&
+             data.adminEmail is string && data.adminEmail.size() >= 3 && data.adminEmail.size() <= 200 &&
+             isValidId(data.workspaceId) &&
+             (!('targetEmail' in data) || (data.targetEmail is string && data.targetEmail.size() >= 3 && data.targetEmail.size() <= 200)) &&
+             (!('role' in data) || data.role == 'EMPLOYEE') &&
+             isValidPermission(data.defaultPermission) &&
+             data.assignedSheetIds is list && data.assignedSheetIds.size() <= 50 &&
+             (data.assignedSheetIds.size() == 0 || data.assignedSheetIds[0] is string) &&
+             (!('sheetPermissions' in data) || data.sheetPermissions is map) &&
+             data.maxUses is int && data.maxUses >= 1 && data.maxUses <= 1000 &&
+             data.usedCount is int && data.usedCount >= 0 && data.usedCount <= data.maxUses &&
+             data.status in ['ACTIVE', 'REVOKED', 'EXPIRED'] &&
+             (!('expiresAt' in data) || data.expiresAt is timestamp) &&
+             isValidTimestamp(data.createdAt) &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidEmailInvite(data) {
+      return data.keys().hasAll(['email', 'inviteCode', 'adminUid', 'workspaceId', 'role', 'status', 'createdAt', 'updatedAt']) &&
+             data.keys().hasOnly(['email', 'inviteCode', 'adminUid', 'workspaceId', 'role', 'status', 'createdAt', 'updatedAt']) &&
+             data.email is string && data.email.size() >= 3 && data.email.size() <= 200 &&
+             isValidId(data.inviteCode) &&
+             isValidId(data.adminUid) &&
+             isValidId(data.workspaceId) &&
+             data.role == 'EMPLOYEE' &&
+             data.status in ['ACTIVE', 'REVOKED', 'EXPIRED'] &&
+             isValidTimestamp(data.createdAt) &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidEmployee(data) {
+      return data.keys().hasAll(['employeeUid', 'workspaceId', 'employeeCode', 'name', 'email', 'addedByAdminUid', 'addedByAdminName', 'addedByAdminEmail', 'inviteCode', 'invitedAt', 'joinedAt', 'status', 'defaultPermission', 'assignedSheetIds', 'totalSearches', 'totalRecordsAdded', 'createdAt', 'updatedAt']) &&
+             data.keys().hasOnly(['employeeUid', 'workspaceId', 'employeeCode', 'name', 'email', 'photoUrl', 'addedByAdminUid', 'addedByAdminName', 'addedByAdminEmail', 'inviteCode', 'invitedAt', 'joinedAt', 'status', 'defaultPermission', 'assignedSheetIds', 'sheetPermissions', 'totalSearches', 'totalRecordsAdded', 'lastActiveAt', 'createdAt', 'updatedAt']) &&
+             isValidId(data.employeeUid) &&
+             isValidId(data.workspaceId) &&
+             data.employeeCode is string && data.employeeCode.size() >= 1 && data.employeeCode.size() <= 32 &&
+             data.name is string && data.name.size() >= 1 && data.name.size() <= 120 &&
+             data.email is string && data.email.size() >= 3 && data.email.size() <= 200 &&
+             (!('photoUrl' in data) || (data.photoUrl is string && data.photoUrl.size() <= 500)) &&
+             isValidId(data.addedByAdminUid) &&
+             data.addedByAdminName is string && data.addedByAdminName.size() >= 1 && data.addedByAdminName.size() <= 120 &&
+             data.addedByAdminEmail is string && data.addedByAdminEmail.size() >= 3 && data.addedByAdminEmail.size() <= 200 &&
+             isValidId(data.inviteCode) &&
+             data.invitedAt is timestamp &&
+             data.joinedAt is timestamp &&
+             isValidAccountStatus(data.status) &&
+             isValidPermission(data.defaultPermission) &&
+             data.assignedSheetIds is list && data.assignedSheetIds.size() <= 100 &&
+             (data.assignedSheetIds.size() == 0 || data.assignedSheetIds[0] is string) &&
+             (!('sheetPermissions' in data) || data.sheetPermissions is map) &&
+             data.totalSearches is int && data.totalSearches >= 0 &&
+             data.totalRecordsAdded is int && data.totalRecordsAdded >= 0 &&
+             (!('lastActiveAt' in data) || data.lastActiveAt is timestamp) &&
+             isValidTimestamp(data.createdAt) &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidSheetConnection(data) {
+      return data.keys().hasAll(['workspaceId', 'spreadsheetId', 'originalTitle', 'customName', 'selectedWorksheets', 'allWorksheets', 'active', 'connectionHealth', 'totalRecords', 'aadhaarMaskingEnabled', 'assignedEmployeeUids', 'createdByUid', 'createdAt', 'updatedAt']) &&
+             data.keys().hasOnly(['workspaceId', 'spreadsheetId', 'originalTitle', 'customName', 'spreadsheetUrl', 'selectedWorksheets', 'allWorksheets', 'active', 'connectionHealth', 'lastSyncAt', 'lastSyncError', 'totalRecords', 'aadhaarMaskingEnabled', 'assignedEmployeeUids', 'createdByUid', 'createdAt', 'updatedAt']) &&
+             isValidId(data.workspaceId) &&
+             data.spreadsheetId is string && data.spreadsheetId.size() >= 1 && data.spreadsheetId.size() <= 128 &&
+             data.originalTitle is string && data.originalTitle.size() >= 1 && data.originalTitle.size() <= 200 &&
+             data.customName is string && data.customName.size() >= 1 && data.customName.size() <= 200 &&
+             (!('spreadsheetUrl' in data) || (data.spreadsheetUrl is string && data.spreadsheetUrl.size() <= 500)) &&
+             data.selectedWorksheets is list && data.selectedWorksheets.size() <= 50 &&
+             (data.selectedWorksheets.size() == 0 || data.selectedWorksheets[0] is string) &&
+             data.allWorksheets is list && data.allWorksheets.size() <= 50 &&
+             (data.allWorksheets.size() == 0 || data.allWorksheets[0] is string) &&
+             data.active is bool &&
+             data.connectionHealth in ['HEALTHY', 'SYNCING', 'ERROR', 'DISCONNECTED'] &&
+             (!('lastSyncAt' in data) || data.lastSyncAt is timestamp) &&
+             (!('lastSyncError' in data) || (data.lastSyncError is string && data.lastSyncError.size() <= 500)) &&
+             data.totalRecords is int && data.totalRecords >= 0 &&
+             data.aadhaarMaskingEnabled is bool &&
+             data.assignedEmployeeUids is list && data.assignedEmployeeUids.size() <= 100 &&
+             (data.assignedEmployeeUids.size() == 0 || data.assignedEmployeeUids[0] is string) &&
+             isValidId(data.createdByUid) &&
+             isValidTimestamp(data.createdAt) &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidSheetRowPage(data) {
+      return data.keys().hasAll(['workspaceId', 'sheetConnectionId', 'spreadsheetId', 'spreadsheetName', 'worksheetTitle', 'pageIndex', 'headers', 'rowsJson', 'rowCount', 'assignedEmployeeUids', 'syncedAtMillis', 'createdAt', 'updatedAt']) &&
+             data.keys().hasOnly(['workspaceId', 'sheetConnectionId', 'spreadsheetId', 'spreadsheetName', 'worksheetTitle', 'pageIndex', 'headers', 'rowsJson', 'rowCount', 'assignedEmployeeUids', 'syncedAtMillis', 'createdAt', 'updatedAt']) &&
+             isValidId(data.workspaceId) &&
+             isValidId(data.sheetConnectionId) &&
+             data.spreadsheetId is string && data.spreadsheetId.size() >= 1 && data.spreadsheetId.size() <= 128 &&
+             data.spreadsheetName is string && data.spreadsheetName.size() >= 1 && data.spreadsheetName.size() <= 200 &&
+             data.worksheetTitle is string && data.worksheetTitle.size() >= 1 && data.worksheetTitle.size() <= 150 &&
+             data.pageIndex is int && data.pageIndex >= 0 &&
+             data.headers is list && data.headers.size() <= 100 &&
+             data.rowsJson is string && data.rowsJson.size() <= 900000 &&
+             data.rowCount is int && data.rowCount >= 0 &&
+             data.assignedEmployeeUids is list && data.assignedEmployeeUids.size() <= 100 &&
+             data.syncedAtMillis is int && data.syncedAtMillis >= 0 &&
+             isValidTimestamp(data.createdAt) &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidPendingSheetWrite(data) {
+      return data.keys().hasAll(['workspaceId', 'sheetConnectionId', 'spreadsheetId', 'worksheetTitle', 'actionType', 'rowNumber', 'values', 'headers', 'requestedByUid', 'requestedByName', 'requestedByEmail', 'status', 'createdAt', 'updatedAt']) &&
+             data.keys().hasOnly(['workspaceId', 'sheetConnectionId', 'spreadsheetId', 'worksheetTitle', 'actionType', 'rowNumber', 'values', 'headers', 'requestedByUid', 'requestedByName', 'requestedByEmail', 'status', 'errorMessage', 'createdAt', 'updatedAt']) &&
+             isValidId(data.workspaceId) &&
+             isValidId(data.sheetConnectionId) &&
+             data.spreadsheetId is string && data.spreadsheetId.size() >= 1 && data.spreadsheetId.size() <= 128 &&
+             data.worksheetTitle is string && data.worksheetTitle.size() >= 1 && data.worksheetTitle.size() <= 150 &&
+             data.actionType in ['ADD', 'EDIT', 'DELETE'] &&
+             data.rowNumber is int && data.rowNumber >= 0 &&
+             data.values is list && data.values.size() <= 100 &&
+             data.headers is list && data.headers.size() <= 100 &&
+             isValidId(data.requestedByUid) &&
+             data.requestedByName is string && data.requestedByName.size() >= 1 && data.requestedByName.size() <= 120 &&
+             data.requestedByEmail is string && data.requestedByEmail.size() >= 3 && data.requestedByEmail.size() <= 200 &&
+             data.status in ['PENDING', 'APPLIED', 'FAILED'] &&
+             (!('errorMessage' in data) || (data.errorMessage is string && data.errorMessage.size() <= 500)) &&
+             isValidTimestamp(data.createdAt) &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidWorksheet(data) {
+      return data.keys().hasAll(['workspaceId', 'sheetConnectionId', 'spreadsheetId', 'worksheetTitle', 'sheetGid', 'headers', 'requiredFields', 'fieldTypes', 'dropdownOptions', 'recordCount', 'assignedEmployeeUids', 'syncStatus', 'createdAt', 'updatedAt']) &&
+             data.keys().hasOnly(['workspaceId', 'sheetConnectionId', 'spreadsheetId', 'worksheetTitle', 'sheetGid', 'headers', 'requiredFields', 'fieldTypes', 'dropdownOptions', 'recordCount', 'assignedEmployeeUids', 'lastSyncAt', 'syncStatus', 'lastSyncError', 'createdAt', 'updatedAt']) &&
+             isValidId(data.workspaceId) &&
+             isValidId(data.sheetConnectionId) &&
+             data.spreadsheetId is string && data.spreadsheetId.size() >= 1 && data.spreadsheetId.size() <= 128 &&
+             data.worksheetTitle is string && data.worksheetTitle.size() >= 1 && data.worksheetTitle.size() <= 150 &&
+             data.sheetGid is int &&
+             data.headers is list && data.headers.size() <= 100 &&
+             (data.headers.size() == 0 || data.headers[0] is string) &&
+             data.requiredFields is list && data.requiredFields.size() <= 100 &&
+             (data.requiredFields.size() == 0 || data.requiredFields[0] is string) &&
+             data.fieldTypes is map &&
+             data.dropdownOptions is map &&
+             data.recordCount is int && data.recordCount >= 0 &&
+             data.assignedEmployeeUids is list && data.assignedEmployeeUids.size() <= 100 &&
+             (data.assignedEmployeeUids.size() == 0 || data.assignedEmployeeUids[0] is string) &&
+             (!('lastSyncAt' in data) || data.lastSyncAt is timestamp) &&
+             data.syncStatus in ['IDLE', 'SYNCING', 'SUCCESS', 'ERROR'] &&
+             (!('lastSyncError' in data) || (data.lastSyncError is string && data.lastSyncError.size() <= 500)) &&
+             isValidTimestamp(data.createdAt) &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidRecordAudit(data) {
+      return data.keys().hasAll(['workspaceId', 'sheetConnectionId', 'spreadsheetId', 'spreadsheetName', 'worksheetTitle', 'rowNumber', 'actionType', 'addedByUid', 'addedByName', 'addedByEmail', 'recordSummary', 'imeiValues', 'createdAt', 'updatedAt']) &&
+             data.keys().hasOnly(['workspaceId', 'sheetConnectionId', 'spreadsheetId', 'spreadsheetName', 'worksheetTitle', 'rowNumber', 'actionType', 'addedByUid', 'addedByName', 'addedByEmail', 'recordSummary', 'imeiValues', 'createdAt', 'updatedAt']) &&
+             isValidId(data.workspaceId) &&
+             isValidId(data.sheetConnectionId) &&
+             data.spreadsheetId is string && data.spreadsheetId.size() >= 1 && data.spreadsheetId.size() <= 128 &&
+             data.spreadsheetName is string && data.spreadsheetName.size() >= 1 && data.spreadsheetName.size() <= 200 &&
+             data.worksheetTitle is string && data.worksheetTitle.size() >= 1 && data.worksheetTitle.size() <= 150 &&
+             data.rowNumber is int && data.rowNumber >= 1 &&
+             data.actionType in ['ADDED', 'EDITED', 'DELETED'] &&
+             isValidId(data.addedByUid) &&
+             data.addedByName is string && data.addedByName.size() >= 1 && data.addedByName.size() <= 120 &&
+             data.addedByEmail is string && data.addedByEmail.size() >= 3 && data.addedByEmail.size() <= 200 &&
+             data.recordSummary is string && data.recordSummary.size() <= 500 &&
+             data.imeiValues is list && data.imeiValues.size() <= 10 &&
+             (data.imeiValues.size() == 0 || data.imeiValues[0] is string) &&
+             isValidTimestamp(data.createdAt) &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidActivityLog(data) {
+      return data.keys().hasAll(['workspaceId', 'userId', 'userName', 'userEmail', 'userRole', 'activityType', 'description', 'createdAt', 'updatedAt']) &&
+             data.keys().hasOnly(['workspaceId', 'userId', 'userName', 'userEmail', 'userRole', 'activityType', 'description', 'sheetId', 'sheetName', 'worksheetTitle', 'rowReference', 'searchQuery', 'createdAt', 'updatedAt']) &&
+             isValidId(data.workspaceId) &&
+             isValidId(data.userId) &&
+             data.userName is string && data.userName.size() >= 1 && data.userName.size() <= 120 &&
+             data.userEmail is string && data.userEmail.size() >= 3 && data.userEmail.size() <= 200 &&
+             data.userRole in ['ADMIN', 'EMPLOYEE'] &&
+             data.activityType is string && data.activityType.size() >= 1 && data.activityType.size() <= 64 &&
+             data.description is string && data.description.size() >= 1 && data.description.size() <= 500 &&
+             (!('sheetId' in data) || (data.sheetId is string && data.sheetId.size() <= 128)) &&
+             (!('sheetName' in data) || (data.sheetName is string && data.sheetName.size() <= 200)) &&
+             (!('worksheetTitle' in data) || (data.worksheetTitle is string && data.worksheetTitle.size() <= 150)) &&
+             (!('rowReference' in data) || (data.rowReference is string && data.rowReference.size() <= 64)) &&
+             (!('searchQuery' in data) || (data.searchQuery is string && data.searchQuery.size() <= 200)) &&
+             isValidTimestamp(data.createdAt) &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidSyncLog(data) {
+      return data.keys().hasAll(['workspaceId', 'sheetConnectionId', 'sheetName', 'triggeredByUid', 'triggeredByName', 'status', 'recordsSynced', 'durationMs', 'createdAt', 'updatedAt']) &&
+             data.keys().hasOnly(['workspaceId', 'sheetConnectionId', 'sheetName', 'triggeredByUid', 'triggeredByName', 'status', 'recordsSynced', 'errorMessage', 'durationMs', 'createdAt', 'updatedAt']) &&
+             isValidId(data.workspaceId) &&
+             isValidId(data.sheetConnectionId) &&
+             data.sheetName is string && data.sheetName.size() >= 1 && data.sheetName.size() <= 200 &&
+             isValidId(data.triggeredByUid) &&
+             data.triggeredByName is string && data.triggeredByName.size() >= 1 && data.triggeredByName.size() <= 120 &&
+             data.status in ['SUCCESS', 'PARTIAL', 'FAILED'] &&
+             data.recordsSynced is int && data.recordsSynced >= 0 &&
+             (!('errorMessage' in data) || (data.errorMessage is string && data.errorMessage.size() <= 500)) &&
+             data.durationMs is int && data.durationMs >= 0 &&
+             isValidTimestamp(data.createdAt) &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidWorkspaceSettings(data) {
+      return data.keys().hasAll(['workspaceId', 'autoSyncIntervalMinutes', 'maskAadhaarByDefault', 'allowEmployeeExport', 'duplicateImeiCheckEnabled', 'updatedByUid', 'createdAt', 'updatedAt']) &&
+             data.keys().hasOnly(['workspaceId', 'autoSyncIntervalMinutes', 'maskAadhaarByDefault', 'allowEmployeeExport', 'duplicateImeiCheckEnabled', 'updatedByUid', 'createdAt', 'updatedAt']) &&
+             isValidId(data.workspaceId) &&
+             data.autoSyncIntervalMinutes is int && data.autoSyncIntervalMinutes >= 5 && data.autoSyncIntervalMinutes <= 1440 &&
+             data.maskAadhaarByDefault is bool &&
+             data.allowEmployeeExport is bool &&
+             data.duplicateImeiCheckEnabled is bool &&
+             isValidId(data.updatedByUid) &&
+             isValidTimestamp(data.createdAt) &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidSavedSearch(data) {
+      return data.keys().hasAll(['userId', 'query', 'filtersSummary', 'saved', 'resultCount', 'createdAt', 'updatedAt']) &&
+             data.keys().hasOnly(['userId', 'query', 'filtersSummary', 'saved', 'resultCount', 'createdAt', 'updatedAt']) &&
+             isValidId(data.userId) &&
+             data.query is string && data.query.size() >= 1 && data.query.size() <= 200 &&
+             data.filtersSummary is string && data.filtersSummary.size() <= 300 &&
+             data.saved is bool &&
+             data.resultCount is int && data.resultCount >= 0 &&
+             isValidTimestamp(data.createdAt) &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    match /users/{userId} {
+      allow get: if isSignedIn() && isValidId(userId) && request.auth.uid == userId;
+      allow list: if false;
+      allow create: if isSignedIn() && isValidId(userId) && request.auth.uid == userId &&
+                       isValidUserProfile(incoming()) &&
+                       incoming().userId == userId &&
+                       incoming().status == 'ACTIVE' &&
+                       (
+                         (incoming().role == 'ADMIN' &&
+                          incoming().workspaceId == userId &&
+                          !hasActiveEmailInvite()) ||
+                         (incoming().role == 'EMPLOYEE' &&
+                          'inviteCodeUsed' in incoming() &&
+                          isValidId(incoming().inviteCodeUsed) &&
+                          exists(/databases/$(database)/documents/invitations/$(incoming().inviteCodeUsed)) &&
+                          get(/databases/$(database)/documents/invitations/$(incoming().inviteCodeUsed)).data.status == 'ACTIVE' &&
+                          get(/databases/$(database)/documents/invitations/$(incoming().inviteCodeUsed)).data.usedCount < get(/databases/$(database)/documents/invitations/$(incoming().inviteCodeUsed)).data.maxUses &&
+                          get(/databases/$(database)/documents/invitations/$(incoming().inviteCodeUsed)).data.adminUid == incoming().workspaceId &&
+                          (!('targetEmail' in get(/databases/$(database)/documents/invitations/$(incoming().inviteCodeUsed)).data) ||
+                           !hasAuthEmail() ||
+                           get(/databases/$(database)/documents/invitations/$(incoming().inviteCodeUsed)).data.targetEmail == authEmailLower()))
+                       );
+      allow update: if isSignedIn() && isValidId(userId) && request.auth.uid == userId &&
+                       isValidUserProfile(incoming()) &&
+                       (
+                         (incoming().userId == existing().userId &&
+                          incoming().role == existing().role &&
+                          incoming().workspaceId == existing().workspaceId &&
+                          incoming().status == existing().status &&
+                          incoming().createdAt == existing().createdAt &&
+                          incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'photoUrl', 'updatedAt'])) ||
+                         isValidEmployeeInviteTransition()
+                       );
+      allow delete: if isSignedIn() && isValidId(userId) && request.auth.uid == userId;
+
+      match /saved_searches/{searchId} {
+        allow get: if isSignedIn() && isValidId(userId) && isValidId(searchId) && request.auth.uid == userId;
+        allow list: if isSignedIn() && isValidId(userId) && request.auth.uid == userId;
+        allow create: if isSignedIn() && isValidId(userId) && isValidId(searchId) && request.auth.uid == userId &&
+                         isValidSavedSearch(incoming()) && incoming().userId == userId;
+        allow update: if isSignedIn() && isValidId(userId) && isValidId(searchId) && request.auth.uid == userId &&
+                         isValidSavedSearch(incoming()) && incoming().userId == existing().userId &&
+                         incoming().createdAt == existing().createdAt;
+        allow delete: if isSignedIn() && isValidId(userId) && isValidId(searchId) && request.auth.uid == userId;
+      }
+    }
+
+    match /invitations/{inviteCode} {
+      allow get: if isSignedIn() && isValidId(inviteCode);
+      allow list: if isSignedIn() && (
+        resource.data.adminUid == request.auth.uid ||
+        (hasAuthEmail() &&
+         'targetEmail' in resource.data &&
+         resource.data.targetEmail == authEmailLower())
+      );
+      allow create: if isSignedIn() && isValidId(inviteCode) &&
+                       isValidInvitation(incoming()) &&
+                       incoming().inviteCode == inviteCode &&
+                       incoming().adminUid == request.auth.uid &&
+                       incoming().workspaceId == request.auth.uid &&
+                       incoming().usedCount == 0 &&
+                       incoming().status == 'ACTIVE';
+      allow update: if isSignedIn() && isValidId(inviteCode) &&
+                       isValidInvitation(incoming()) &&
+                       incoming().inviteCode == existing().inviteCode &&
+                       incoming().adminUid == existing().adminUid &&
+                       incoming().workspaceId == existing().workspaceId &&
+                       incoming().createdAt == existing().createdAt &&
+                       (
+                         (existing().adminUid == request.auth.uid &&
+                          incoming().diff(existing()).affectedKeys().hasOnly(['status', 'maxUses', 'defaultPermission', 'assignedSheetIds', 'sheetPermissions', 'targetEmail', 'expiresAt', 'updatedAt'])) ||
+                         (existing().status == 'ACTIVE' &&
+                          existing().usedCount < existing().maxUses &&
+                          incoming().usedCount == existing().usedCount + 1 &&
+                          incoming().diff(existing()).affectedKeys().hasOnly(['usedCount', 'updatedAt']) &&
+                          (!('targetEmail' in existing()) || !hasAuthEmail() || existing().targetEmail == authEmailLower()))
+                       );
+      allow delete: if isSignedIn() && isValidId(inviteCode) && existing().adminUid == request.auth.uid;
+    }
+
+    match /email_invites/{normalizedEmail} {
+      allow get: if isSignedIn() && normalizedEmail is string && normalizedEmail.size() >= 3 && normalizedEmail.size() <= 200 && (
+        (hasAuthEmail() && authEmailLower() == normalizedEmail) ||
+        (resource == null || resource.data.adminUid == request.auth.uid)
+      );
+      allow list: if isSignedIn() && resource.data.adminUid == request.auth.uid;
+      allow create: if isSignedIn() &&
+                       isValidEmailInvite(incoming()) &&
+                       incoming().email == normalizedEmail &&
+                       incoming().adminUid == request.auth.uid &&
+                       incoming().workspaceId == request.auth.uid &&
+                       incoming().status == 'ACTIVE';
+      allow update: if isSignedIn() &&
+                       isValidEmailInvite(incoming()) &&
+                       incoming().email == existing().email &&
+                       (
+                         ((existing().adminUid == request.auth.uid || existingEmailInviteIsInactive()) &&
+                          incoming().adminUid == request.auth.uid &&
+                          incoming().workspaceId == request.auth.uid &&
+                          incoming().workspaceId == incoming().adminUid) ||
+                         (hasAuthEmail() &&
+                          authEmailLower() == normalizedEmail &&
+                          existing().status == 'ACTIVE' &&
+                          incoming().status == 'EXPIRED' &&
+                          incoming().inviteCode == existing().inviteCode &&
+                          incoming().adminUid == existing().adminUid &&
+                          incoming().workspaceId == existing().workspaceId &&
+                          incoming().role == existing().role &&
+                          incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt']))
+                       );
+      allow delete: if isSignedIn() && existing().adminUid == request.auth.uid;
+    }
+
+    match /workspaces/{workspaceId} {
+      match /employees/{employeeUid} {
+        allow get: if isSignedIn() && isValidId(workspaceId) && isValidId(employeeUid) &&
+                      (request.auth.uid == workspaceId || request.auth.uid == employeeUid);
+        allow list: if isSignedIn() && isValidId(workspaceId) && request.auth.uid == workspaceId;
+        allow create: if isSignedIn() && isValidId(workspaceId) && isValidId(employeeUid) &&
+                         isValidEmployee(incoming()) &&
+                         incoming().workspaceId == workspaceId &&
+                         incoming().employeeUid == employeeUid &&
+                         incoming().addedByAdminUid == workspaceId &&
+                         (
+                           request.auth.uid == workspaceId ||
+                           (request.auth.uid == employeeUid &&
+                            exists(/databases/$(database)/documents/invitations/$(incoming().inviteCode)) &&
+                            get(/databases/$(database)/documents/invitations/$(incoming().inviteCode)).data.adminUid == workspaceId &&
+                            get(/databases/$(database)/documents/invitations/$(incoming().inviteCode)).data.status == 'ACTIVE' &&
+                            get(/databases/$(database)/documents/invitations/$(incoming().inviteCode)).data.usedCount < get(/databases/$(database)/documents/invitations/$(incoming().inviteCode)).data.maxUses &&
+                            incoming().defaultPermission == get(/databases/$(database)/documents/invitations/$(incoming().inviteCode)).data.defaultPermission &&
+                            incoming().assignedSheetIds == get(/databases/$(database)/documents/invitations/$(incoming().inviteCode)).data.assignedSheetIds &&
+                            (!('sheetPermissions' in get(/databases/$(database)/documents/invitations/$(incoming().inviteCode)).data) ||
+                             incoming().sheetPermissions == get(/databases/$(database)/documents/invitations/$(incoming().inviteCode)).data.sheetPermissions) &&
+                            (!('targetEmail' in get(/databases/$(database)/documents/invitations/$(incoming().inviteCode)).data) ||
+                             !hasAuthEmail() ||
+                             get(/databases/$(database)/documents/invitations/$(incoming().inviteCode)).data.targetEmail == authEmailLower()))
+                         );
+        allow update: if isSignedIn() && isValidId(workspaceId) && isValidId(employeeUid) &&
+                         isValidEmployee(incoming()) &&
+                         incoming().workspaceId == existing().workspaceId &&
+                         incoming().employeeUid == existing().employeeUid &&
+                         incoming().addedByAdminUid == existing().addedByAdminUid &&
+                         incoming().createdAt == existing().createdAt &&
+                         (
+                           (request.auth.uid == workspaceId &&
+                            incoming().diff(existing()).affectedKeys().hasOnly(['name', 'email', 'photoUrl', 'status', 'defaultPermission', 'assignedSheetIds', 'sheetPermissions', 'updatedAt'])) ||
+                           (request.auth.uid == employeeUid &&
+                            existing().status == 'ACTIVE' &&
+                            incoming().status == existing().status &&
+                            incoming().defaultPermission == existing().defaultPermission &&
+                            incoming().assignedSheetIds == existing().assignedSheetIds &&
+                            (!('sheetPermissions' in existing()) || incoming().sheetPermissions == existing().sheetPermissions) &&
+                            incoming().totalSearches >= existing().totalSearches &&
+                            incoming().totalRecordsAdded >= existing().totalRecordsAdded &&
+                            incoming().diff(existing()).affectedKeys().hasOnly(['name', 'photoUrl', 'totalSearches', 'totalRecordsAdded', 'lastActiveAt', 'updatedAt']))
+                         );
+        allow delete: if isSignedIn() && isValidId(workspaceId) && isValidId(employeeUid) &&
+                         (request.auth.uid == workspaceId || request.auth.uid == employeeUid);
+      }
+
+      match /sheets/{sheetId} {
+        allow get: if isSignedIn() && isValidId(workspaceId) && isValidId(sheetId) &&
+                      (request.auth.uid == workspaceId ||
+                       (request.auth.uid in resource.data.assignedEmployeeUids &&
+                        resource.data.active == true &&
+                        isActiveEmployee(workspaceId)));
+        allow list: if isSignedIn() && isValidId(workspaceId) &&
+                       (request.auth.uid == workspaceId ||
+                        (request.auth.uid in resource.data.assignedEmployeeUids &&
+                         isActiveEmployee(workspaceId)));
+        allow create: if isSignedIn() && isValidId(workspaceId) && isValidId(sheetId) &&
+                         request.auth.uid == workspaceId &&
+                         isValidSheetConnection(incoming()) &&
+                         incoming().workspaceId == workspaceId &&
+                         incoming().createdByUid == workspaceId;
+        allow update: if isSignedIn() && isValidId(workspaceId) && isValidId(sheetId) &&
+                         isValidSheetConnection(incoming()) &&
+                         incoming().workspaceId == existing().workspaceId &&
+                         incoming().createdByUid == existing().createdByUid &&
+                         incoming().createdAt == existing().createdAt &&
+                         (
+                           request.auth.uid == workspaceId ||
+                           (request.auth.uid in existing().assignedEmployeeUids &&
+                            existing().active == true &&
+                            isActiveEmployee(workspaceId) &&
+                            incoming().diff(existing()).affectedKeys().hasOnly(['totalRecords', 'lastSyncAt', 'connectionHealth', 'updatedAt'])) ||
+                           (isActiveEmployee(workspaceId) &&
+                            sheetId in employeeData(workspaceId).assignedSheetIds &&
+                            incoming().diff(existing()).affectedKeys().hasOnly(['assignedEmployeeUids', 'updatedAt']) &&
+                            request.auth.uid in incoming().assignedEmployeeUids &&
+                            incoming().assignedEmployeeUids.hasAll(existing().assignedEmployeeUids) &&
+                            incoming().assignedEmployeeUids.size() <= existing().assignedEmployeeUids.size() + 1)
+                         );
+        allow delete: if isSignedIn() && isValidId(workspaceId) && isValidId(sheetId) && request.auth.uid == workspaceId;
+
+        match /row_pages/{pageId} {
+          allow get, list: if isSignedIn() && isValidId(workspaceId) && isValidId(sheetId) && (
+            request.auth.uid == workspaceId ||
+            (isActiveEmployee(workspaceId) &&
+             sheetId in employeeData(workspaceId).assignedSheetIds &&
+             exists(/databases/$(database)/documents/workspaces/$(workspaceId)/sheets/$(sheetId)) &&
+             get(/databases/$(database)/documents/workspaces/$(workspaceId)/sheets/$(sheetId)).data.active == true)
+          );
+          allow create: if isSignedIn() && isValidId(workspaceId) && isValidId(sheetId) && isValidId(pageId) &&
+                           request.auth.uid == workspaceId &&
+                           isValidSheetRowPage(incoming()) &&
+                           incoming().workspaceId == workspaceId &&
+                           incoming().sheetConnectionId == sheetId;
+          allow update: if isSignedIn() && isValidId(workspaceId) && isValidId(sheetId) && isValidId(pageId) &&
+                           request.auth.uid == workspaceId &&
+                           isValidSheetRowPage(incoming()) &&
+                           incoming().workspaceId == existing().workspaceId &&
+                           incoming().sheetConnectionId == existing().sheetConnectionId;
+          allow delete: if isSignedIn() && isValidId(workspaceId) && isValidId(sheetId) && request.auth.uid == workspaceId;
+        }
+
+        match /pending_writes/{writeId} {
+          allow get, list: if isSignedIn() && isValidId(workspaceId) && isValidId(sheetId) && (
+            request.auth.uid == workspaceId ||
+            resource.data.requestedByUid == request.auth.uid
+          );
+          allow create: if isSignedIn() && isValidId(workspaceId) && isValidId(sheetId) && isValidId(writeId) &&
+                           isValidPendingSheetWrite(incoming()) &&
+                           incoming().workspaceId == workspaceId &&
+                           incoming().sheetConnectionId == sheetId &&
+                           incoming().status == 'PENDING' &&
+                           (
+                             request.auth.uid == workspaceId ||
+                             (isActiveEmployee(workspaceId) &&
+                              incoming().requestedByUid == request.auth.uid &&
+                              sheetId in employeeData(workspaceId).assignedSheetIds &&
+                              (
+                                (incoming().actionType == 'ADD' &&
+                                 effectiveSheetPermission(employeeData(workspaceId), sheetId) in ['SEARCH_ADD', 'SEARCH_EDIT', 'FULL_ACCESS']) ||
+                                (incoming().actionType in ['EDIT', 'DELETE'] &&
+                                 effectiveSheetPermission(employeeData(workspaceId), sheetId) in ['SEARCH_EDIT', 'FULL_ACCESS'])
+                              ))
+                           );
+          allow update, delete: if isSignedIn() && isValidId(workspaceId) && isValidId(sheetId) && request.auth.uid == workspaceId;
+        }
+      }
+
+      match /worksheets/{wsDocId} {
+        allow get: if isSignedIn() && isValidId(workspaceId) && isValidId(wsDocId) &&
+                      (request.auth.uid == workspaceId ||
+                       (request.auth.uid in resource.data.assignedEmployeeUids && isActiveEmployee(workspaceId)));
+        allow list: if isSignedIn() && isValidId(workspaceId) &&
+                       (request.auth.uid == workspaceId ||
+                        (request.auth.uid in resource.data.assignedEmployeeUids && isActiveEmployee(workspaceId)));
+        allow create: if isSignedIn() && isValidId(workspaceId) && isValidId(wsDocId) &&
+                         request.auth.uid == workspaceId &&
+                         isValidWorksheet(incoming()) &&
+                         incoming().workspaceId == workspaceId;
+        allow update: if isSignedIn() && isValidId(workspaceId) && isValidId(wsDocId) &&
+                         isValidWorksheet(incoming()) &&
+                         incoming().workspaceId == existing().workspaceId &&
+                         incoming().createdAt == existing().createdAt &&
+                         (
+                           request.auth.uid == workspaceId ||
+                           (request.auth.uid in existing().assignedEmployeeUids &&
+                            isActiveEmployee(workspaceId) &&
+                            incoming().diff(existing()).affectedKeys().hasOnly(['recordCount', 'lastSyncAt', 'syncStatus', 'updatedAt'])) ||
+                           (isActiveEmployee(workspaceId) &&
+                            existing().sheetConnectionId in employeeData(workspaceId).assignedSheetIds &&
+                            incoming().diff(existing()).affectedKeys().hasOnly(['assignedEmployeeUids', 'updatedAt']) &&
+                            request.auth.uid in incoming().assignedEmployeeUids &&
+                            incoming().assignedEmployeeUids.hasAll(existing().assignedEmployeeUids) &&
+                            incoming().assignedEmployeeUids.size() <= existing().assignedEmployeeUids.size() + 1)
+                         );
+        allow delete: if isSignedIn() && isValidId(workspaceId) && isValidId(wsDocId) && request.auth.uid == workspaceId;
+      }
+
+      match /record_audits/{auditId} {
+        allow get: if isSignedIn() && isValidId(workspaceId) && isValidId(auditId) &&
+                      (request.auth.uid == workspaceId || resource.data.addedByUid == request.auth.uid);
+        allow list: if isSignedIn() && isValidId(workspaceId) &&
+                       (request.auth.uid == workspaceId || resource.data.addedByUid == request.auth.uid);
+        allow create: if isSignedIn() && isValidId(workspaceId) && isValidId(auditId) &&
+                         isValidRecordAudit(incoming()) &&
+                         incoming().workspaceId == workspaceId &&
+                         incoming().addedByUid == request.auth.uid &&
+                         isWorkspaceMember(workspaceId) &&
+                         (request.auth.uid == workspaceId || incoming().sheetConnectionId in employeeData(workspaceId).assignedSheetIds);
+        allow update: if isSignedIn() && isValidId(workspaceId) && isValidId(auditId) &&
+                         request.auth.uid == workspaceId && isValidRecordAudit(incoming()) &&
+                         incoming().workspaceId == existing().workspaceId &&
+                         incoming().createdAt == existing().createdAt;
+        allow delete: if isSignedIn() && isValidId(workspaceId) && isValidId(auditId) && request.auth.uid == workspaceId;
+      }
+
+      match /activity_logs/{logId} {
+        allow get: if isSignedIn() && isValidId(workspaceId) && isValidId(logId) &&
+                      (request.auth.uid == workspaceId || resource.data.userId == request.auth.uid);
+        allow list: if isSignedIn() && isValidId(workspaceId) &&
+                       (request.auth.uid == workspaceId || resource.data.userId == request.auth.uid);
+        allow create: if isSignedIn() && isValidId(workspaceId) && isValidId(logId) &&
+                         isValidActivityLog(incoming()) &&
+                         incoming().workspaceId == workspaceId &&
+                         incoming().userId == request.auth.uid &&
+                         isWorkspaceMember(workspaceId);
+        allow update, delete: if false;
+      }
+
+      match /sync_logs/{syncLogId} {
+        allow get: if isSignedIn() && isValidId(workspaceId) && isValidId(syncLogId) &&
+                      (request.auth.uid == workspaceId || resource.data.triggeredByUid == request.auth.uid);
+        allow list: if isSignedIn() && isValidId(workspaceId) &&
+                       (request.auth.uid == workspaceId || resource.data.triggeredByUid == request.auth.uid);
+        allow create: if isSignedIn() && isValidId(workspaceId) && isValidId(syncLogId) &&
+                         isValidSyncLog(incoming()) &&
+                         incoming().workspaceId == workspaceId &&
+                         incoming().triggeredByUid == request.auth.uid &&
+                         isWorkspaceMember(workspaceId);
+        allow update, delete: if false;
+      }
+
+      match /settings/{settingId} {
+        allow get: if isSignedIn() && isValidId(workspaceId) && isValidId(settingId) && isWorkspaceMember(workspaceId);
+        allow list: if false;
+        allow create: if isSignedIn() && isValidId(workspaceId) && isValidId(settingId) &&
+                         request.auth.uid == workspaceId &&
+                         isValidWorkspaceSettings(incoming()) &&
+                         incoming().workspaceId == workspaceId &&
+                         incoming().updatedByUid == request.auth.uid;
+        allow update: if isSignedIn() && isValidId(workspaceId) && isValidId(settingId) &&
+                         request.auth.uid == workspaceId &&
+                         isValidWorkspaceSettings(incoming()) &&
+                         incoming().workspaceId == existing().workspaceId &&
+                         incoming().createdAt == existing().createdAt &&
+                         incoming().updatedByUid == request.auth.uid;
+        allow delete: if isSignedIn() && isValidId(workspaceId) && isValidId(settingId) && request.auth.uid == workspaceId;
+      }
+    }
+  }
+}

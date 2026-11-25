@@ -1,0 +1,11 @@
+<resources>
+    <string name="app_name">Smart Sheet</string>
+    <string name="public_web_base_url" translatable="false">https://gen-lang-client-0057690374.firebaseapp.com</string>
+    <string name="developer_contact_name" translatable="false">Smart Sheet Developer</string>
+    <string name="developer_contact_email" translatable="false">sanudeen42@gmail.com</string>
+    <string name="legal_links_section_title">LEGAL &amp; IMPORTANT LINKS</string>
+    <string name="legal_privacy_policy">Privacy Policy</string>
+    <string name="legal_terms_of_service">Terms of Service</string>
+    <string name="legal_app_home_page">App Home Page</string>
+    <string name="legal_link_copied_toast">Link copied successfully</string>
+</resources>

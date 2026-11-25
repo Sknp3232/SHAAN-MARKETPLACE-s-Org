@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex" />
+  <title>Accept Employee Invitation — Smart Sheet</title>
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --surface: #ffffff;
+      --text: #0f172a;
+      --muted: #475569;
+      --primary: #1a73e8;
+      --primary-dark: #1557b0;
+      --primary-soft: #e8f0fe;
+      --border: #e2e8f0;
+      --success-bg: #dcfce7;
+      --success-text: #166534;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      display: flex;
+      min-height: 100vh;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .card {
+      max-width: 520px;
+      width: 100%;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 28px;
+      box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+    }
+    .badge {
+      display: inline-block;
+      background: var(--success-bg);
+      color: var(--success-text);
+      font-size: 0.78rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      padding: 4px 10px;
+      border-radius: 999px;
+      margin-bottom: 12px;
+    }
+    h1 {
+      margin: 0 0 10px;
+      font-size: 1.5rem;
+      line-height: 1.25;
+    }
+    p {
+      margin: 0 0 14px;
+      color: var(--muted);
+      font-size: 0.96rem;
+    }
+    .code-box {
+      background: var(--primary-soft);
+      border: 1px solid #bfdbfe;
+      border-radius: 12px;
+      padding: 14px 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin: 18px 0;
+    }
+    .code-value {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: var(--primary-dark);
+      word-break: break-all;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      padding: 13px 18px;
+      border-radius: 12px;
+      font-weight: 600;
+      font-size: 1rem;
+      text-decoration: none;
+      cursor: pointer;
+      border: none;
+      background: var(--primary);
+      color: #ffffff;
+      margin-bottom: 10px;
+    }
+    .btn:hover { background: var(--primary-dark); }
+    .btn-secondary {
+      background: #ffffff;
+      color: var(--text);
+      border: 1px solid var(--border);
+      padding: 8px 12px;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .steps {
+      margin-top: 18px;
+      padding-top: 16px;
+      border-top: 1px solid var(--border);
+      font-size: 0.9rem;
+      color: var(--muted);
+    }
+    .steps ol {
+      margin: 8px 0 0;
+      padding-left: 18px;
+    }
+    .footer-links {
+      margin-top: 18px;
+      text-align: center;
+      font-size: 0.84rem;
+      color: var(--muted);
+    }
+    .footer-links a {
+      color: var(--primary);
+      text-decoration: none;
+      margin: 0 8px;
+    }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <span class="badge">EMPLOYEE WORKSPACE INVITATION</span>
+    <h1>Join Your Team in Smart Sheet</h1>
+    <p>
+      You have been invited as an <strong>Employee</strong>. Tap below to open the Smart Sheet Android app and sign in with your invited Google email address.
+    </p>
+
+    <div id="code-container" class="code-box" style="display: none;">
+      <div>
+        <div style="font-size: 0.78rem; color: #475569;">Invitation Code</div>
+        <div id="invite-code-text" class="code-value"></div>
+      </div>
+      <button type="button" class="btn-secondary" id="copy-code-btn">Copy</button>
+    </div>
+
+    <a id="open-app-btn" class="btn" href="smartsheet://invite">Open Smart Sheet App</a>
+
+    <div class="steps">
+      <strong>How automatic employee login works:</strong>
+      <ol>
+        <li>Open the <strong>Smart Sheet</strong> Android app (using the button above or from your home screen).</li>
+        <li>Tap <strong>Sign in with Google</strong> using the exact Gmail address your Admin invited.</li>
+        <li>Your Employee role, workspace, and assigned spreadsheets load automatically—no manual setup required.</li>
+      </ol>
+    </div>
+
+    <div class="footer-links">
+      <a href="/">Home</a>
+      <a href="/privacy-policy">Privacy Policy</a>
+      <a href="/terms-of-service">Terms of Service</a>
+    </div>
+  </main>
+
+  <script>
+    (function () {
+      var params = new URLSearchParams(window.location.search);
+      var rawCode = (params.get("code") || "").trim().toUpperCase().replace(/[^A-Z0-9_-]/g, "");
+      var deepLink = rawCode ? ("smartsheet://invite?code=" + encodeURIComponent(rawCode)) : "smartsheet://invite";
+      var openBtn = document.getElementById("open-app-btn");
+      openBtn.setAttribute("href", deepLink);
+
+      if (rawCode) {
+        document.getElementById("code-container").style.display = "flex";
+        document.getElementById("invite-code-text").textContent = rawCode;
+        document.getElementById("copy-code-btn").addEventListener("click", function () {
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(rawCode);
+            this.textContent = "Copied";
+          }
+        });
+      }
+    })();
+  </script>
+</body>
+</html>

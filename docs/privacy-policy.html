@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Smart Sheet Privacy Policy — How Smart Sheet collects, accesses, processes, stores, and protects Google Sign-In, Firestore, and Google Sheets data." />
+  <link rel="canonical" href="https://gen-lang-client-0057690374.firebaseapp.com/privacy-policy" />
+  <title>Smart Sheet Privacy Policy</title>
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --surface: #ffffff;
+      --text: #0f172a;
+      --muted: #475569;
+      --primary: #1a73e8;
+      --border: #e2e8f0;
+      --success-bg: #dcfce7;
+      --success-text: #166534;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.65;
+    }
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 16px 24px;
+    }
+    .nav {
+      max-width: 880px;
+      margin: 0 auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .brand {
+      font-weight: 700;
+      font-size: 1.15rem;
+      color: var(--primary);
+      text-decoration: none;
+    }
+    .nav-links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 18px;
+    }
+    .nav-links a {
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 0.95rem;
+      font-weight: 500;
+    }
+    .nav-links a:hover, .nav-links a[aria-current="page"] { color: var(--primary); }
+    main {
+      max-width: 880px;
+      margin: 28px auto;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 32px;
+    }
+    h1 { margin-top: 0; font-size: 1.9rem; }
+    h2 { margin-top: 28px; font-size: 1.2rem; color: #1e293b; }
+    p, li { color: #334155; }
+    .meta {
+      color: var(--muted);
+      font-size: 0.94rem;
+      margin-bottom: 18px;
+      background: #f8fafc;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px 16px;
+    }
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    .btn {
+      padding: 9px 15px;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      cursor: pointer;
+      min-height: 42px;
+    }
+    .btn:hover { border-color: var(--primary); color: var(--primary); }
+    .toast {
+      display: none;
+      margin-bottom: 16px;
+      padding: 10px 14px;
+      border-radius: 8px;
+      background: var(--success-bg);
+      color: var(--success-text);
+      font-size: 0.9rem;
+      font-weight: 500;
+    }
+    code {
+      background: #f1f5f9;
+      padding: 2px 6px;
+      border-radius: 6px;
+      font-size: 0.88rem;
+    }
+    footer {
+      max-width: 880px;
+      margin: 0 auto 40px;
+      padding: 0 16px;
+      color: var(--muted);
+      font-size: 0.9rem;
+      display: flex;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    footer a { color: var(--primary); text-decoration: none; }
+  </style>
+</head>
+<body>
+  <header>
+    <nav class="nav" aria-label="Primary navigation">
+      <a class="brand" href="/">Smart Sheet</a>
+      <div class="nav-links">
+        <a href="/">Home</a>
+        <a href="/privacy-policy" aria-current="page">Privacy Policy</a>
+        <a href="/terms-of-service">Terms of Service</a>
+        <a href="/account-deletion">Account Deletion</a>
+      </div>
+    </nav>
+  </header>
+
+  <main>
+    <h1>Smart Sheet Privacy Policy</h1>
+    <div class="meta">
+      <strong>Application:</strong> Smart Sheet (<code>com.aistudio.smartsheet.kxmpzq</code>)<br />
+      <strong>Effective Date:</strong> November 22, 2026<br />
+      <strong>Last Updated:</strong> November 22, 2026<br />
+      <strong>Developer / Privacy Contact:</strong> Smart Sheet Developer (<a href="mailto:sanudeen42@gmail.com">sanudeen42@gmail.com</a>)
+    </div>
+
+    <div class="actions">
+      <button type="button" class="btn" onclick="sharePage('Smart Sheet Privacy Policy', window.location.href)">Share Privacy Policy</button>
+      <button type="button" class="btn" onclick="copyPageLink(window.location.href)">Copy Link</button>
+    </div>
+    <div id="copyToast" class="toast" role="status" aria-live="polite">Link copied successfully</div>
+
+    <p>
+      This Privacy Policy describes truthfully how <strong>Smart Sheet</strong> collects, accesses,
+      processes, stores, and deletes information based on the actual functionality of the Smart
+      Sheet Android application.
+    </p>
+
+    <h2>1. Information We Collect</h2>
+    <ul>
+      <li>
+        <strong>Google Sign-In &amp; Account Profile Data:</strong> When you sign in using Google
+        via Android Credential Manager and Firebase Authentication, Smart Sheet receives your
+        Firebase user ID, display name, email address, and profile photo URL to identify your
+        account and workspace role (Workspace Admin or invited Employee).
+      </li>
+      <li>
+        <strong>Workspace, Permission &amp; Audit Metadata:</strong> Smart Sheet stores workspace
+        configurations in Google Cloud Firestore, including connected spreadsheet IDs, custom sheet
+        names, worksheet metadata, employee invitation codes, per-sheet employee permissions,
+        saved searches, sync status logs, record addition/edit audits, and workspace activity logs.
+      </li>
+      <li>
+        <strong>Spreadsheet Content (Cached on Your Device):</strong> When you connect and sync a
+        Google Sheet, worksheet headers and row values are cached locally in an on-device Room
+        SQLite database so you can search records rapidly offline or on slow connections.
+      </li>
+      <li>
+        <strong>Device Preferences:</strong> Local DataStore preferences store your theme choice
+        (System / Light / Dark) and any pending employee invitation code entered prior to sign-in.
+      </li>
+      <li>
+        <strong>Camera (Optional On-Device Barcode Scanning):</strong> If you tap the IMEI/barcode
+        scanner, Android camera frames are processed strictly on-device via Google ML Kit Barcode
+        Scanning to read barcode text. Smart Sheet does not record, store, or upload camera images
+        or video.
+      </li>
+    </ul>
+
+    <h2>2. Google Account Authentication</h2>
+    <p>
+      Authentication is handled exclusively through Google Sign-In (Jetpack Credential Manager) and
+      Firebase Authentication. Smart Sheet does not collect or store your Google Account password.
+    </p>
+
+    <h2>3. Google Sheets Access &amp; Requested Permissions</h2>
+    <p>
+      Each user authorizes their own Google Account via Google OAuth 2.0
+      (<code>Identity.getAuthorizationClient</code>) to connect Google Drive and Google Sheets.
+      Smart Sheet requests only these two narrowest permissions:
+    </p>
+    <ul>
+      <li>
+        <code>https://www.googleapis.com/auth/drive.file</code> — Allows Smart Sheet to list,
+        pick, and create only the specific Google Spreadsheets you open or create inside Smart
+        Sheet. Smart Sheet does not request broad access to all files in your Google Drive.
+      </li>
+      <li>
+        <code>https://www.googleapis.com/auth/spreadsheets</code> — Allows Smart Sheet to read
+        spreadsheet metadata/rows and append, update, or delete authorized rows in connected
+        spreadsheets.
+      </li>
+    </ul>
+
+    <h2>4. How Spreadsheet Information Is Accessed and Processed</h2>
+    <ul>
+      <li>Smart Sheet connects directly from your Android device to official Google Drive v3 and Google Sheets v4 APIs using your user-scoped OAuth access token.</li>
+      <li>Spreadsheet rows are indexed locally on your device for instant multi-keyword search, duplicate IMEI checking, and form field entry.</li>
+      <li>Fields identified as Aadhaar numbers are masked in search lists by default (<code>XXXX-XXXX-last4</code>) unless explicitly revealed by an authorized user or configured otherwise by the Workspace Admin.</li>
+      <li>Google Sheets in your Google Drive remains the authoritative source of truth for your records.</li>
+    </ul>
+
+    <h2>5. Data Storage &amp; Security</h2>
+    <ul>
+      <li>All network traffic to Google Sign-In, Firebase, Google Drive, and Google Sheets APIs uses HTTPS/TLS encryption in transit.</li>
+      <li>Cloud Firestore security rules enforce strict workspace and role isolation so unauthenticated users cannot read or write workspace data and employees only access assigned sheets.</li>
+      <li>OAuth access tokens are kept in memory for your active session, are never shared across different users on the device, and are redacted from error messages and diagnostics logs.</li>
+    </ul>
+
+    <h2>6. Sharing with Third Parties &amp; Google Limited Use Compliance</h2>
+    <p>
+      Smart Sheet does <strong>not</strong> sell your personal data, share your spreadsheets with
+      advertisers or data brokers, or use Google Workspace data to train AI or machine learning
+      models. Data is processed only by Google Cloud / Firebase infrastructure strictly to provide
+      authentication, workspace database persistence, and Google Drive/Sheets synchronization.
+    </p>
+    <p>
+      Smart Sheet's use and transfer to any other app of information received from Google APIs
+      adheres to the
+      <a href="https://developers.google.com/terms/api-services-user-data-policy" rel="noopener noreferrer">
+        Google API Services User Data Policy
+      </a>, including the Limited Use requirements.
+    </p>
+
+    <h2>7. Data Retention &amp; Account Deletion</h2>
+    <ul>
+      <li>
+        <strong>Google OAuth Revocation:</strong> Tap <strong>Disconnect Google</strong> in the
+        <strong>Sheets</strong> tab at any time to revoke the active OAuth token and clear local
+        Google authorization state. You can also revoke access at
+        <a href="https://myaccount.google.com/permissions" rel="noopener noreferrer">myaccount.google.com/permissions</a>.
+      </li>
+      <li>
+        <strong>In-App Account Deletion:</strong> Open <strong>My Account → Account Management → Delete Account</strong>
+        to delete your Firebase Authentication account, remove your Firestore user profile and
+        saved searches, revoke your Google OAuth session, and clear local cached rows. Your
+        underlying Google Sheets files in Google Drive are <strong>never</strong> deleted when you
+        delete your Smart Sheet account.
+      </li>
+      <li>
+        <strong>Web / Email Deletion Request:</strong> See our
+        <a href="/account-deletion">Account Deletion</a> page or email
+        <a href="mailto:sanudeen42@gmail.com">sanudeen42@gmail.com</a> from your registered email
+        address.
+      </li>
+    </ul>
+
+    <h2>8. Your Privacy Rights</h2>
+    <p>
+      Depending on your jurisdiction, you have the right to access your account data, request
+      correction of profile or workspace records, disconnect external Google permissions, and
+      delete your Smart Sheet account and associated app-stored data.
+    </p>
+
+    <h2>9. Contact Information</h2>
+    <p>
+      For privacy questions, data access inquiries, or deletion assistance, contact:<br />
+      <strong>Smart Sheet Developer Contact:</strong> <a href="mailto:sanudeen42@gmail.com">sanudeen42@gmail.com</a>
+    </p>
+  </main>
+
+  <footer>
+    <span>&copy; 2026 Smart Sheet</span>
+    <span>
+      <a href="/">Home</a> &middot;
+      <a href="/terms-of-service">Terms of Service</a> &middot;
+      <a href="/account-deletion">Account Deletion</a>
+    </span>
+  </footer>
+
+  <script>
+    function showCopyToast() {
+      var el = document.getElementById('copyToast');
+      if (!el) return;
+      el.style.display = 'block';
+      clearTimeout(window.__toastTimer);
+      window.__toastTimer = setTimeout(function () { el.style.display = 'none'; }, 3000);
+    }
+    function copyPageLink(url) {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(url).then(showCopyToast).catch(function () { fallbackCopy(url); });
+      } else {
+        fallbackCopy(url);
+      }
+    }
+    function fallbackCopy(url) {
+      var ta = document.createElement('textarea');
+      ta.value = url;
+      ta.setAttribute('readonly', '');
+      ta.style.position = 'absolute';
+      ta.style.left = '-9999px';
+      document.body.appendChild(ta);
+      ta.select();
+      try { document.execCommand('copy'); } catch (e) {}
+      document.body.removeChild(ta);
+      showCopyToast();
+    }
+    function sharePage(title, url) {
+      if (navigator.share) {
+        navigator.share({ title: title, text: title, url: url }).catch(function () { copyPageLink(url); });
+      } else {
+        copyPageLink(url);
+      }
+    }
+  </script>
+</body>
+</html>

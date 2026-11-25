@@ -1,0 +1,337 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Authenticated user identity and role assignment (ADMIN by direct login when uninvited, EMPLOYEE automatically when invited by email or invite code).",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Firebase Auth UID" },
+        "email": { "type": "string", "description": "Google account email address" },
+        "displayName": { "type": "string", "description": "User display name" },
+        "photoUrl": { "type": "string", "description": "Optional profile avatar URL" },
+        "role": { "type": "string", "enum": ["ADMIN", "EMPLOYEE"], "description": "Workspace role" },
+        "workspaceId": { "type": "string", "description": "Owning Admin UID for this workspace" },
+        "inviteCodeUsed": { "type": "string", "description": "Invitation code redeemed by EMPLOYEE" },
+        "addedByAdminUid": { "type": "string", "description": "Inviting Admin UID for EMPLOYEE" },
+        "addedByAdminName": { "type": "string", "description": "Inviting Admin display name" },
+        "addedByAdminEmail": { "type": "string", "description": "Inviting Admin email" },
+        "invitedAt": { "type": "string", "format": "date-time", "description": "Invitation timestamp" },
+        "joinedAt": { "type": "string", "format": "date-time", "description": "Employee join timestamp" },
+        "status": { "type": "string", "enum": ["ACTIVE", "SUSPENDED", "REMOVED"], "description": "Account status" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp" }
+      },
+      "required": ["userId", "email", "displayName", "role", "workspaceId", "status", "createdAt", "updatedAt"]
+    },
+    "Invitation": {
+      "title": "Invitation",
+      "description": "Admin-generated email-bound employee invitation with assigned sheets and per-sheet permissions.",
+      "type": "object",
+      "properties": {
+        "inviteCode": { "type": "string", "description": "Unique invitation code" },
+        "adminUid": { "type": "string", "description": "Inviting Admin UID" },
+        "adminName": { "type": "string", "description": "Inviting Admin name" },
+        "adminEmail": { "type": "string", "description": "Inviting Admin email" },
+        "workspaceId": { "type": "string", "description": "Admin workspace ID" },
+        "targetEmail": { "type": "string", "description": "Normalized lowercase invited employee email" },
+        "role": { "type": "string", "enum": ["EMPLOYEE"], "description": "Assigned role" },
+        "defaultPermission": { "type": "string", "enum": ["SEARCH_ONLY", "SEARCH_ADD", "SEARCH_EDIT", "FULL_ACCESS"] },
+        "assignedSheetIds": { "type": "array", "description": "Initial sheet IDs granted to invitee" },
+        "sheetPermissions": { "type": "object", "description": "Per-sheet permission levels" },
+        "maxUses": { "type": "integer", "description": "Maximum allowed redemptions" },
+        "usedCount": { "type": "integer", "description": "Number of redemptions so far" },
+        "status": { "type": "string", "enum": ["ACTIVE", "REVOKED", "EXPIRED"] },
+        "expiresAt": { "type": "string", "format": "date-time", "description": "Optional expiration timestamp" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["inviteCode", "adminUid", "adminName", "adminEmail", "workspaceId", "defaultPermission", "assignedSheetIds", "maxUses", "usedCount", "status", "createdAt", "updatedAt"]
+    },
+    "EmailInviteIndex": {
+      "title": "EmailInviteIndex",
+      "description": "Normalized email lookup index enforcing backend EMPLOYEE role assignment on login.",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string" },
+        "inviteCode": { "type": "string" },
+        "adminUid": { "type": "string" },
+        "workspaceId": { "type": "string" },
+        "role": { "type": "string", "enum": ["EMPLOYEE"] },
+        "status": { "type": "string", "enum": ["ACTIVE", "REVOKED", "EXPIRED"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["email", "inviteCode", "adminUid", "workspaceId", "role", "status", "createdAt", "updatedAt"]
+    },
+    "EmployeeRecord": {
+      "title": "EmployeeRecord",
+      "description": "Employee membership, permissions, and usage metrics scoped under an Admin workspace.",
+      "type": "object",
+      "properties": {
+        "employeeUid": { "type": "string" },
+        "workspaceId": { "type": "string" },
+        "employeeCode": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "photoUrl": { "type": "string" },
+        "addedByAdminUid": { "type": "string" },
+        "addedByAdminName": { "type": "string" },
+        "addedByAdminEmail": { "type": "string" },
+        "inviteCode": { "type": "string" },
+        "invitedAt": { "type": "string", "format": "date-time" },
+        "joinedAt": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "enum": ["ACTIVE", "SUSPENDED", "REMOVED"] },
+        "defaultPermission": { "type": "string", "enum": ["SEARCH_ONLY", "SEARCH_ADD", "SEARCH_EDIT", "FULL_ACCESS"] },
+        "assignedSheetIds": { "type": "array" },
+        "sheetPermissions": { "type": "object" },
+        "totalSearches": { "type": "integer" },
+        "totalRecordsAdded": { "type": "integer" },
+        "lastActiveAt": { "type": "string", "format": "date-time" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["employeeUid", "workspaceId", "employeeCode", "name", "email", "addedByAdminUid", "addedByAdminName", "addedByAdminEmail", "inviteCode", "invitedAt", "joinedAt", "status", "defaultPermission", "assignedSheetIds", "totalSearches", "totalRecordsAdded", "createdAt", "updatedAt"]
+    },
+    "SheetConnection": {
+      "title": "SheetConnection",
+      "description": "Connected Google Spreadsheet metadata and access control list.",
+      "type": "object",
+      "properties": {
+        "workspaceId": { "type": "string" },
+        "spreadsheetId": { "type": "string" },
+        "originalTitle": { "type": "string" },
+        "customName": { "type": "string" },
+        "spreadsheetUrl": { "type": "string" },
+        "selectedWorksheets": { "type": "array" },
+        "allWorksheets": { "type": "array" },
+        "active": { "type": "boolean" },
+        "connectionHealth": { "type": "string", "enum": ["HEALTHY", "SYNCING", "ERROR", "DISCONNECTED"] },
+        "lastSyncAt": { "type": "string", "format": "date-time" },
+        "lastSyncError": { "type": "string" },
+        "totalRecords": { "type": "integer" },
+        "aadhaarMaskingEnabled": { "type": "boolean" },
+        "assignedEmployeeUids": { "type": "array" },
+        "createdByUid": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["workspaceId", "spreadsheetId", "originalTitle", "customName", "selectedWorksheets", "allWorksheets", "active", "connectionHealth", "totalRecords", "aadhaarMaskingEnabled", "assignedEmployeeUids", "createdByUid", "createdAt", "updatedAt"]
+    },
+    "SheetRowPage": {
+      "title": "SheetRowPage",
+      "description": "Synchronized worksheet row chunk scoped to assigned employees without exposing Admin OAuth tokens.",
+      "type": "object",
+      "properties": {
+        "workspaceId": { "type": "string" },
+        "sheetConnectionId": { "type": "string" },
+        "spreadsheetId": { "type": "string" },
+        "spreadsheetName": { "type": "string" },
+        "worksheetTitle": { "type": "string" },
+        "pageIndex": { "type": "integer" },
+        "headers": { "type": "array" },
+        "rowsJson": { "type": "string" },
+        "rowCount": { "type": "integer" },
+        "assignedEmployeeUids": { "type": "array" },
+        "syncedAtMillis": { "type": "integer" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["workspaceId", "sheetConnectionId", "spreadsheetId", "spreadsheetName", "worksheetTitle", "pageIndex", "headers", "rowsJson", "rowCount", "assignedEmployeeUids", "syncedAtMillis", "createdAt", "updatedAt"]
+    },
+    "PendingSheetWrite": {
+      "title": "PendingSheetWrite",
+      "description": "Permission-validated write queue submitted by authorized employees and flushed to Google Sheets by Admin.",
+      "type": "object",
+      "properties": {
+        "workspaceId": { "type": "string" },
+        "sheetConnectionId": { "type": "string" },
+        "spreadsheetId": { "type": "string" },
+        "worksheetTitle": { "type": "string" },
+        "actionType": { "type": "string", "enum": ["ADD", "EDIT", "DELETE"] },
+        "rowNumber": { "type": "integer" },
+        "values": { "type": "array" },
+        "headers": { "type": "array" },
+        "requestedByUid": { "type": "string" },
+        "requestedByName": { "type": "string" },
+        "requestedByEmail": { "type": "string" },
+        "status": { "type": "string", "enum": ["PENDING", "APPLIED", "FAILED"] },
+        "errorMessage": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["workspaceId", "sheetConnectionId", "spreadsheetId", "worksheetTitle", "actionType", "rowNumber", "values", "headers", "requestedByUid", "requestedByName", "requestedByEmail", "status", "createdAt", "updatedAt"]
+    },
+    "WorksheetMetadata": {
+      "title": "WorksheetMetadata",
+      "description": "Individual worksheet headers, dynamic form field configs, and sync state.",
+      "type": "object",
+      "properties": {
+        "workspaceId": { "type": "string" },
+        "sheetConnectionId": { "type": "string" },
+        "spreadsheetId": { "type": "string" },
+        "worksheetTitle": { "type": "string" },
+        "sheetGid": { "type": "integer" },
+        "headers": { "type": "array" },
+        "requiredFields": { "type": "array" },
+        "fieldTypes": { "type": "object" },
+        "dropdownOptions": { "type": "object" },
+        "recordCount": { "type": "integer" },
+        "assignedEmployeeUids": { "type": "array" },
+        "lastSyncAt": { "type": "string", "format": "date-time" },
+        "syncStatus": { "type": "string", "enum": ["IDLE", "SYNCING", "SUCCESS", "ERROR"] },
+        "lastSyncError": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["workspaceId", "sheetConnectionId", "spreadsheetId", "worksheetTitle", "sheetGid", "headers", "requiredFields", "fieldTypes", "dropdownOptions", "recordCount", "assignedEmployeeUids", "syncStatus", "createdAt", "updatedAt"]
+    },
+    "RecordAudit": {
+      "title": "RecordAudit",
+      "description": "Application-level audit tracking for records added or modified via Smart Sheet.",
+      "type": "object",
+      "properties": {
+        "workspaceId": { "type": "string" },
+        "sheetConnectionId": { "type": "string" },
+        "spreadsheetId": { "type": "string" },
+        "spreadsheetName": { "type": "string" },
+        "worksheetTitle": { "type": "string" },
+        "rowNumber": { "type": "integer" },
+        "actionType": { "type": "string", "enum": ["ADDED", "EDITED", "DELETED"] },
+        "addedByUid": { "type": "string" },
+        "addedByName": { "type": "string" },
+        "addedByEmail": { "type": "string" },
+        "recordSummary": { "type": "string" },
+        "imeiValues": { "type": "array" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["workspaceId", "sheetConnectionId", "spreadsheetId", "spreadsheetName", "worksheetTitle", "rowNumber", "actionType", "addedByUid", "addedByName", "addedByEmail", "recordSummary", "imeiValues", "createdAt", "updatedAt"]
+    },
+    "ActivityLog": {
+      "title": "ActivityLog",
+      "description": "Immutable workspace audit log entry.",
+      "type": "object",
+      "properties": {
+        "workspaceId": { "type": "string" },
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "userEmail": { "type": "string" },
+        "userRole": { "type": "string", "enum": ["ADMIN", "EMPLOYEE"] },
+        "activityType": { "type": "string" },
+        "description": { "type": "string" },
+        "sheetId": { "type": "string" },
+        "sheetName": { "type": "string" },
+        "worksheetTitle": { "type": "string" },
+        "rowReference": { "type": "string" },
+        "searchQuery": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["workspaceId", "userId", "userName", "userEmail", "userRole", "activityType", "description", "createdAt", "updatedAt"]
+    },
+    "SyncLog": {
+      "title": "SyncLog",
+      "description": "Synchronization execution history and error logs.",
+      "type": "object",
+      "properties": {
+        "workspaceId": { "type": "string" },
+        "sheetConnectionId": { "type": "string" },
+        "sheetName": { "type": "string" },
+        "triggeredByUid": { "type": "string" },
+        "triggeredByName": { "type": "string" },
+        "status": { "type": "string", "enum": ["SUCCESS", "PARTIAL", "FAILED"] },
+        "recordsSynced": { "type": "integer" },
+        "errorMessage": { "type": "string" },
+        "durationMs": { "type": "integer" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["workspaceId", "sheetConnectionId", "sheetName", "triggeredByUid", "triggeredByName", "status", "recordsSynced", "durationMs", "createdAt", "updatedAt"]
+    },
+    "WorkspaceSettings": {
+      "title": "WorkspaceSettings",
+      "description": "Workspace-wide sync, Aadhaar masking, and export settings.",
+      "type": "object",
+      "properties": {
+        "workspaceId": { "type": "string" },
+        "autoSyncIntervalMinutes": { "type": "integer" },
+        "maskAadhaarByDefault": { "type": "boolean" },
+        "allowEmployeeExport": { "type": "boolean" },
+        "duplicateImeiCheckEnabled": { "type": "boolean" },
+        "updatedByUid": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["workspaceId", "autoSyncIntervalMinutes", "maskAadhaarByDefault", "allowEmployeeExport", "duplicateImeiCheckEnabled", "updatedByUid", "createdAt", "updatedAt"]
+    },
+    "SavedSearch": {
+      "title": "SavedSearch",
+      "description": "User recent and saved search history.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "query": { "type": "string" },
+        "filtersSummary": { "type": "string" },
+        "saved": { "type": "boolean" },
+        "resultCount": { "type": "integer" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "query", "filtersSummary", "saved", "resultCount", "createdAt", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "Authenticated user profile and role metadata"
+    },
+    "/users/{userId}/saved_searches/{searchId}": {
+      "schema": { "$ref": "#/entities/SavedSearch" },
+      "description": "User saved and recent search queries"
+    },
+    "/invitations/{inviteCode}": {
+      "schema": { "$ref": "#/entities/Invitation" },
+      "description": "Admin-generated employee invitations"
+    },
+    "/email_invites/{normalizedEmail}": {
+      "schema": { "$ref": "#/entities/EmailInviteIndex" },
+      "description": "Normalized email invite lookup index for automatic EMPLOYEE role enforcement"
+    },
+    "/workspaces/{workspaceId}/employees/{employeeUid}": {
+      "schema": { "$ref": "#/entities/EmployeeRecord" },
+      "description": "Employees managed within an Admin workspace"
+    },
+    "/workspaces/{workspaceId}/sheets/{sheetId}": {
+      "schema": { "$ref": "#/entities/SheetConnection" },
+      "description": "Connected Google Spreadsheets in an Admin workspace"
+    },
+    "/workspaces/{workspaceId}/sheets/{sheetId}/row_pages/{pageId}": {
+      "schema": { "$ref": "#/entities/SheetRowPage" },
+      "description": "Chunked synchronized spreadsheet rows accessible to authorized employees"
+    },
+    "/workspaces/{workspaceId}/sheets/{sheetId}/pending_writes/{writeId}": {
+      "schema": { "$ref": "#/entities/PendingSheetWrite" },
+      "description": "Permission-enforced employee write queue flushed by Admin"
+    },
+    "/workspaces/{workspaceId}/worksheets/{wsDocId}": {
+      "schema": { "$ref": "#/entities/WorksheetMetadata" },
+      "description": "Worksheet schemas and sync status in an Admin workspace"
+    },
+    "/workspaces/{workspaceId}/record_audits/{auditId}": {
+      "schema": { "$ref": "#/entities/RecordAudit" },
+      "description": "Application-level record creation and edit audit trail"
+    },
+    "/workspaces/{workspaceId}/activity_logs/{logId}": {
+      "schema": { "$ref": "#/entities/ActivityLog" },
+      "description": "Immutable workspace activity audit log"
+    },
+    "/workspaces/{workspaceId}/sync_logs/{syncLogId}": {
+      "schema": { "$ref": "#/entities/SyncLog" },
+      "description": "Synchronization execution and error logs"
+    },
+    "/workspaces/{workspaceId}/settings/{settingId}": {
+      "schema": { "$ref": "#/entities/WorkspaceSettings" },
+      "description": "Workspace configuration document"
+    }
+  }
+}

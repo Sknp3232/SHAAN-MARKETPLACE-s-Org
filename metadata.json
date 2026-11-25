@@ -1,0 +1,6 @@
+{
+  "name": "Smart Sheet",
+  "description": "Advanced Google Sheets management platform with global live search, direct record entry, IMEI barcode scanning, analytics, and multi-admin workspace permissions.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

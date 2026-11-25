@@ -1,0 +1,49 @@
+{
+  "firestore": [
+    {
+      "database": "ai-studio-android-smartshe-c509eb25-0318-4a21-aef5-11c1ac67f9be",
+      "rules": "firestore.rules"
+    }
+  ],
+  "hosting": {
+    "public": "docs",
+    "cleanUrls": true,
+    "trailingSlash": false,
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "redirects": [
+      {
+        "source": "/privacy",
+        "destination": "/privacy-policy",
+        "type": 301
+      },
+      {
+        "source": "/privacy.html",
+        "destination": "/privacy-policy",
+        "type": 301
+      },
+      {
+        "source": "/terms",
+        "destination": "/terms-of-service",
+        "type": 301
+      },
+      {
+        "source": "/terms.html",
+        "destination": "/terms-of-service",
+        "type": 301
+      }
+    ]
+  },
+  "emulators": {
+    "firestore": {
+      "host": "127.0.0.1",
+      "port": 8085
+    },
+    "ui": {
+      "enabled": false
+    }
+  }
+}
